@@ -99,20 +99,59 @@ done
 echo -e "${GREEN}✓ Warmup complete${NC}"
 echo ""
 
-# Benchmark single request latency
-echo -e "${CYAN}[3/5]${NC} Benchmarking single request latency (${BENCHMARK_REQUESTS} requests each)..."
+# Benchmark request latency while iterating through pages
+echo -e "${CYAN}[3/5]${NC} Benchmarking request latency across pages..."
 
-# Endpoint A
-for ((i=1; i<=BENCHMARK_REQUESTS; i++)); do
-    time_ms=$(curl -s -o /dev/null -w "%{time_total}" "${BASE_URL}${ENDPOINT_A}" | awk '{printf "%.2f", $1 * 1000}')
+# Endpoint A: iterate through pages
+a_page=0
+a_requests=0
+while [[ $a_requests -lt $BENCHMARK_REQUESTS ]]; do
+    # Build URL with page parameter
+    if [[ "$ENDPOINT_A" == *"?"* ]]; then
+        url="${BASE_URL}${ENDPOINT_A}&${PAGE_PARAM_A}=${a_page}"
+    else
+        url="${BASE_URL}${ENDPOINT_A}?${PAGE_PARAM_A}=${a_page}"
+    fi
+    
+    time_ms=$(curl -s -o /tmp/a_response.json -w "%{time_total}" "$url" | awk '{printf "%.2f", $1 * 1000}')
     echo "$time_ms" >> "$A_TIMES"
+    a_requests=$((a_requests + 1))
+    
+    # Check if more pages exist
+    count=$(jq -r "${JQ_COUNT_A}" /tmp/a_response.json 2>/dev/null || echo "0")
+    has_next=$(jq -r "${JQ_HAS_NEXT_A}" /tmp/a_response.json 2>/dev/null)
+    if [[ -z "$has_next" ]] || [[ "$count" -lt "$PAGE_SIZE" ]]; then
+        a_page=0  # Restart from first page if we reach the end
+    else
+        a_page=$((a_page + 1))
+    fi
 done
 
-# Endpoint B
-for ((i=1; i<=BENCHMARK_REQUESTS; i++)); do
-    time_ms=$(curl -s -o /dev/null -w "%{time_total}" "${BASE_URL}${ENDPOINT_B}" | awk '{printf "%.2f", $1 * 1000}')
+# Endpoint B: iterate through pages using cursor
+b_cursor=0
+b_requests=0
+while [[ $b_requests -lt $BENCHMARK_REQUESTS ]]; do
+    # Build URL with cursor parameter
+    if [[ "$ENDPOINT_B" == *"?"* ]]; then
+        url="${BASE_URL}${ENDPOINT_B}&${CURSOR_PARAM_B}=${b_cursor}"
+    else
+        url="${BASE_URL}${ENDPOINT_B}?${CURSOR_PARAM_B}=${b_cursor}"
+    fi
+    
+    time_ms=$(curl -s -o /tmp/b_response.json -w "%{time_total}" "$url" | awk '{printf "%.2f", $1 * 1000}')
     echo "$time_ms" >> "$B_TIMES"
+    b_requests=$((b_requests + 1))
+    
+    # Get cursor for next page
+    count=$(jq "${JQ_COUNT_B}" /tmp/b_response.json 2>/dev/null || echo "0")
+    if [[ "$count" -eq 0 ]] || [[ "$count" -lt "$PAGE_SIZE" ]]; then
+        b_cursor=0  # Restart from first page if we reach the end
+    else
+        b_cursor=$(jq -r "${JQ_CURSOR_B}" /tmp/b_response.json 2>/dev/null)
+    fi
 done
+
+rm -f /tmp/a_response.json /tmp/b_response.json
 
 echo -e "${GREEN}✓ Latency benchmark complete${NC}"
 echo ""
