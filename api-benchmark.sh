@@ -181,10 +181,14 @@ while true; do
     fi
     response=$(curl -s "$url")
     count=$(echo "$response" | jq -r "${JQ_COUNT_A}" 2>/dev/null || echo "0")
+    # Ensure count is a valid number
+    if ! [[ "$count" =~ ^[0-9]+$ ]]; then
+        count=0
+    fi
     a_total_items=$((a_total_items + count))
     
     # Check if this is the last page
-    has_next=$(echo "$response" | jq -r "${JQ_HAS_NEXT_A}" 2>/dev/null)
+    has_next=$(echo "$response" | jq -r "${JQ_HAS_NEXT_A}" 2>/dev/null || echo "")
     if [[ -z "$has_next" ]] || [[ "$count" -lt "$PAGE_SIZE" ]]; then
         break
     fi
@@ -208,6 +212,10 @@ while true; do
     fi
     response=$(curl -s "$url")
     count=$(echo "$response" | jq "${JQ_COUNT_B}" 2>/dev/null || echo "0")
+    # Ensure count is a valid number
+    if ! [[ "$count" =~ ^[0-9]+$ ]]; then
+        count=0
+    fi
     
     if [[ "$count" -eq 0 ]]; then
         break
@@ -217,7 +225,7 @@ while true; do
     b_pages=$((b_pages + 1))
     
     # Get cursor for next page
-    b_cursor=$(echo "$response" | jq -r "${JQ_CURSOR_B}" 2>/dev/null)
+    b_cursor=$(echo "$response" | jq -r "${JQ_CURSOR_B}" 2>/dev/null || echo "0")
     
     if [[ "$count" -lt "$PAGE_SIZE" ]]; then
         break
