@@ -43,7 +43,3 @@ ENDPOINT_B_NAME='Stream' \
 | `JQ_CURSOR_B` | jq expression to get cursor from B | `'.[-1].id // 0'` |
 | `PAGE_PARAM_A` | Page parameter name for A | `page` |
 | `CURSOR_PARAM_B` | Cursor parameter name for B | `afterId` |
-
-## License
-
-MIT
