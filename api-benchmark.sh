@@ -162,8 +162,13 @@ if [ ${#MISSING_DEPS[@]} -ne 0 ]; then
     exit 1
 fi
 
-# Check if server is running
-if ! curl -s --fail "${BASE_URL}${ENDPOINT_B}" > /dev/null 2>&1; then
+# Check if server is running - add page parameter for initial check
+if [[ "$ENDPOINT_B" == *"?"* ]]; then
+    health_url="${BASE_URL}${ENDPOINT_B}&${PAGE_PARAM_B}=0"
+else
+    health_url="${BASE_URL}${ENDPOINT_B}?${PAGE_PARAM_B}=0"
+fi
+if ! curl -s --fail "$health_url" > /dev/null 2>&1; then
     echo -e "${RED}ERROR: Server not responding at ${BASE_URL}${NC}"
     exit 1
 fi
@@ -175,8 +180,17 @@ echo ""
 # =============================================================================
 echo -e "${CYAN}[2/5]${NC} Warming up (${WARMUP_REQUESTS} requests each)..."
 for ((i=1; i<=WARMUP_REQUESTS; i++)); do
-    curl -s "${BASE_URL}${ENDPOINT_A}" > /dev/null
-    curl -s "${BASE_URL}${ENDPOINT_B}" > /dev/null
+    # Build warmup URLs with page parameter
+    if [[ "$ENDPOINT_A" == *"?"* ]]; then
+        curl -s "${BASE_URL}${ENDPOINT_A}&${PAGE_PARAM_A}=0" > /dev/null
+    else
+        curl -s "${BASE_URL}${ENDPOINT_A}?${PAGE_PARAM_A}=0" > /dev/null
+    fi
+    if [[ "$ENDPOINT_B" == *"?"* ]]; then
+        curl -s "${BASE_URL}${ENDPOINT_B}&${PAGE_PARAM_B}=0" > /dev/null
+    else
+        curl -s "${BASE_URL}${ENDPOINT_B}?${PAGE_PARAM_B}=0" > /dev/null
+    fi
 done
 echo -e "${GREEN}✓ Warmup complete${NC}"
 echo ""
@@ -249,8 +263,17 @@ echo ""
 # =============================================================================
 echo -e "${CYAN}[4/5]${NC} Measuring response sizes..."
 
-a_size=$(curl -s "${BASE_URL}${ENDPOINT_A}" | wc -c)
-b_size=$(curl -s "${BASE_URL}${ENDPOINT_B}" | wc -c)
+# Build URLs with page parameter for size measurement
+if [[ "$ENDPOINT_A" == *"?"* ]]; then
+    a_size=$(curl -s "${BASE_URL}${ENDPOINT_A}&${PAGE_PARAM_A}=0" | wc -c)
+else
+    a_size=$(curl -s "${BASE_URL}${ENDPOINT_A}?${PAGE_PARAM_A}=0" | wc -c)
+fi
+if [[ "$ENDPOINT_B" == *"?"* ]]; then
+    b_size=$(curl -s "${BASE_URL}${ENDPOINT_B}&${PAGE_PARAM_B}=0" | wc -c)
+else
+    b_size=$(curl -s "${BASE_URL}${ENDPOINT_B}?${PAGE_PARAM_B}=0" | wc -c)
+fi
 
 echo -e "${GREEN}✓ Size measurement complete${NC}"
 echo ""
